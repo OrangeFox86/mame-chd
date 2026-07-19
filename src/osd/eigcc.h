@@ -1,5 +1,21 @@
 // license:BSD-3-Clause
 // copyright-holders:Vas Crabb
+// Portions Copyright 2026 The Hollycast Authors
+//
+// This file is part of Hollycast.
+//
+//     Hollycast is free software: you can redistribute it and/or modify
+//     it under the terms of the GNU General Public License as published by
+//     the Free Software Foundation, either version 2 of the License, or
+//     (at your option) any later version.
+//
+//     Hollycast is distributed in the hope that it will be useful,
+//     but WITHOUT ANY WARRANTY; without even the implied warranty of
+//     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+//     GNU General Public License for more details.
+//
+//     You should have received a copy of the GNU General Public License
+//     along with Hollycast.  If not, see <https://www.gnu.org/licenses/>.
 /***************************************************************************
 
     eigccppc.h
@@ -113,6 +129,103 @@ inline uint64_t ATTR_FORCE_INLINE
 _muldivupu_64(uint64_t m1, uint64_t m2, uint64_t d)
 {
 	return ((__uint128_t(m1) * m2) + d - 1) / d;
+}
+#endif
+
+
+
+/***************************************************************************
+    INLINE BIT MANIPULATION FUNCTIONS
+***************************************************************************/
+
+/*-------------------------------------------------
+    count_leading_zeros_32 - return the number of
+    leading zero bits in a 32-bit value
+-------------------------------------------------*/
+
+#ifndef count_leading_zeros_32
+#define count_leading_zeros_32 _count_leading_zeros_32
+inline uint8_t _count_leading_zeros_32(uint32_t val)
+{
+	// uses CPU feature if available, otherwise falls back to runtime library call
+	static_assert(sizeof(val) == sizeof(unsigned), "expected 32-bit unsigned int");
+	return uint8_t(unsigned(val ? __builtin_clz(val) : 32));
+}
+#endif
+
+
+/*-------------------------------------------------
+    count_leading_ones_32 - return the number of
+    leading one bits in a 32-bit value
+-------------------------------------------------*/
+
+#ifndef count_leading_ones_32
+#define count_leading_ones_32 _count_leading_ones_32
+inline uint8_t _count_leading_ones_32(uint32_t val)
+{
+	return count_leading_zeros_32(~val);
+}
+#endif
+
+
+/*-------------------------------------------------
+    count_leading_zeros_64 - return the number of
+    leading zero bits in a 64-bit value
+-------------------------------------------------*/
+
+#ifndef count_leading_zeros_64
+#define count_leading_zeros_64 _count_leading_zeros_64
+inline uint8_t _count_leading_zeros_64(uint64_t val)
+{
+	// uses CPU feature if available, otherwise falls back to runtime library call
+	static_assert(sizeof(val) == sizeof(unsigned long long), "expected 64-bit unsigned long long int");
+	return uint8_t(unsigned(val ? __builtin_clzll(val) : 64));
+}
+#endif
+
+
+/*-------------------------------------------------
+    count_leading_ones_64 - return the number of
+    leading one bits in a 64-bit value
+-------------------------------------------------*/
+
+#ifndef count_leading_ones_64
+#define count_leading_ones_64 _count_leading_ones_64
+inline uint8_t _count_leading_ones_64(uint64_t val)
+{
+	return count_leading_zeros_64(~val);
+}
+#endif
+
+
+/*-------------------------------------------------
+    population_count_32 - return the number of
+    one bits in a 32-bit value
+-------------------------------------------------*/
+
+#ifndef population_count_32
+#define population_count_32 _population_count_32
+inline unsigned _population_count_32(uint32_t val)
+{
+	// uses CPU feature if available, otherwise falls back to implementation similar to eminline.h
+	static_assert(sizeof(val) == sizeof(unsigned), "expected 32-bit unsigned int");
+	return unsigned(__builtin_popcount(static_cast<unsigned>(val)));
+}
+#endif
+
+
+/*-------------------------------------------------
+    population_count_64 - return the number of
+    one bits in a 64-bit value
+-------------------------------------------------*/
+
+#ifndef population_count_64
+#define population_count_64 _population_count_64
+inline unsigned _population_count_64(uint64_t val)
+{
+	// uses CPU feature if available, otherwise falls back to implementation similar to eminline.h
+	static_assert(sizeof(val) == sizeof(unsigned long long), "expected 64-bit unsigned long long int");
+	return unsigned(__builtin_popcountll(static_cast<unsigned long long>(val)));
 }
 #endif
 

@@ -1,5 +1,21 @@
 // license:BSD-3-Clause
 // copyright-holders:Aaron Giles
+// Portions Copyright 2026 The Hollycast Authors
+//
+// This file is part of Hollycast.
+//
+//     Hollycast is free software: you can redistribute it and/or modify
+//     it under the terms of the GNU General Public License as published by
+//     the Free Software Foundation, either version 2 of the License, or
+//     (at your option) any later version.
+//
+//     Hollycast is distributed in the hope that it will be useful,
+//     but WITHOUT ANY WARRANTY; without even the implied warranty of
+//     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+//     GNU General Public License for more details.
+//
+//     You should have received a copy of the GNU General Public License
+//     along with Hollycast.  If not, see <https://www.gnu.org/licenses/>.
 /***************************************************************************
 
     Codecs used by the CHD format
@@ -8,20 +24,24 @@
 
 #include "chdcodec.h"
 
+#ifndef HOLLYCAST_CHD_NO_AVHUFF
 #include "avhuff.h"
+#endif
 #include "cdrom.h"
 #include "chd.h"
+#ifndef HOLLYCAST_CHD_NO_FLAC
 #include "flac.h"
+#endif
 #include "hashing.h"
+#include "huffman.h"
 #include "multibyte.h"
 
-#include "lzma/C/LzmaDec.h"
-#include "lzma/C/LzmaEnc.h"
+#include "LzmaDec.h"
+#include "LzmaEnc.h"
 
 #include <zlib.h>
 #include <zstd.h>
 
-#include <cstring>
 #include <new>
 
 
@@ -240,6 +260,7 @@ private:
 };
 
 
+#ifndef HOLLYCAST_CHD_NO_FLAC
 // ======================> chd_flac_compressor
 
 // FLAC compressor
@@ -328,6 +349,7 @@ private:
 	chd_zlib_allocator  m_allocator;
 	std::vector<uint8_t>      m_buffer;
 };
+#endif
 
 
 // ======================> chd_cd_compressor
@@ -457,6 +479,7 @@ private:
 };
 
 
+#ifndef HOLLYCAST_CHD_NO_AVHUFF
 // ======================> chd_avhuff_compressor
 
 // A/V compressor
@@ -497,6 +520,7 @@ private:
 	// internal state
 	avhuff_decoder              m_decoder;
 };
+#endif
 
 
 
@@ -535,16 +559,22 @@ const codec_entry f_codec_list[] =
 	{ CHD_CODEC_ZSTD,       false,  "Zstandard",            &codec_entry::construct_compressor<chd_zstd_compressor>,     &codec_entry::construct_decompressor<chd_zstd_decompressor> },
 	{ CHD_CODEC_LZMA,       false,  "LZMA",                 &codec_entry::construct_compressor<chd_lzma_compressor>,     &codec_entry::construct_decompressor<chd_lzma_decompressor> },
 	{ CHD_CODEC_HUFFMAN,    false,  "Huffman",              &codec_entry::construct_compressor<chd_huffman_compressor>,  &codec_entry::construct_decompressor<chd_huffman_decompressor> },
+#ifndef HOLLYCAST_CHD_NO_FLAC
 	{ CHD_CODEC_FLAC,       false,  "FLAC",                 &codec_entry::construct_compressor<chd_flac_compressor>,     &codec_entry::construct_decompressor<chd_flac_decompressor> },
+#endif
 
 	// general codecs with CD frontend
 	{ CHD_CODEC_CD_ZLIB,    false,  "CD Deflate",           &codec_entry::construct_compressor<chd_cd_compressor<chd_zlib_compressor, chd_zlib_compressor> >,        &codec_entry::construct_decompressor<chd_cd_decompressor<chd_zlib_decompressor, chd_zlib_decompressor> > },
 	{ CHD_CODEC_CD_ZSTD,    false,  "CD Zstandard",         &codec_entry::construct_compressor<chd_cd_compressor<chd_zstd_compressor, chd_zstd_compressor> >,        &codec_entry::construct_decompressor<chd_cd_decompressor<chd_zstd_decompressor, chd_zstd_decompressor> > },
 	{ CHD_CODEC_CD_LZMA,    false,  "CD LZMA",              &codec_entry::construct_compressor<chd_cd_compressor<chd_lzma_compressor, chd_zlib_compressor> >,        &codec_entry::construct_decompressor<chd_cd_decompressor<chd_lzma_decompressor, chd_zlib_decompressor> > },
+#ifndef HOLLYCAST_CHD_NO_FLAC
 	{ CHD_CODEC_CD_FLAC,    false,  "CD FLAC",              &codec_entry::construct_compressor<chd_cd_flac_compressor>,                                              &codec_entry::construct_decompressor<chd_cd_flac_decompressor> },
+#endif
 
 	// A/V codecs
+#ifndef HOLLYCAST_CHD_NO_AVHUFF
 	{ CHD_CODEC_AVHUFF,     false,  "A/V Huffman",          &codec_entry::construct_compressor<chd_avhuff_compressor>,   &codec_entry::construct_decompressor<chd_avhuff_decompressor> },
+#endif
 };
 
 
@@ -1453,6 +1483,7 @@ void chd_huffman_decompressor::decompress(const uint8_t *src, uint32_t complen, 
 
 
 
+#ifndef HOLLYCAST_CHD_NO_FLAC
 //**************************************************************************
 //  FLAC COMPRESSOR
 //**************************************************************************
@@ -1804,9 +1835,11 @@ void chd_cd_flac_decompressor::decompress(const uint8_t *src, uint32_t complen, 
 		memcpy(&dest[framenum * cdrom_file::FRAME_SIZE + cdrom_file::MAX_SECTOR_DATA], &m_buffer[frames * cdrom_file::MAX_SECTOR_DATA + framenum * cdrom_file::MAX_SUBCODE_DATA], cdrom_file::MAX_SUBCODE_DATA);
 	}
 }
+#endif
 
 
 
+#ifndef HOLLYCAST_CHD_NO_AVHUFF
 //**************************************************************************
 //  AVHUFF COMPRESSOR
 //**************************************************************************
@@ -1985,3 +2018,4 @@ void chd_avhuff_decompressor::configure(int param, void *config)
 	else
 		throw std::error_condition(std::errc::invalid_argument);
 }
+#endif

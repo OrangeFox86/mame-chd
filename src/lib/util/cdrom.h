@@ -1,5 +1,21 @@
 // license:BSD-3-Clause
 // copyright-holders:Aaron Giles,R. Belmont
+// Portions Copyright 2026 The Hollycast Authors
+//
+// This file is part of Hollycast.
+//
+//     Hollycast is free software: you can redistribute it and/or modify
+//     it under the terms of the GNU General Public License as published by
+//     the Free Software Foundation, either version 2 of the License, or
+//     (at your option) any later version.
+//
+//     Hollycast is distributed in the hope that it will be useful,
+//     but WITHOUT ANY WARRANTY; without even the implied warranty of
+//     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+//     GNU General Public License for more details.
+//
+//     You should have received a copy of the GNU General Public License
+//     along with Hollycast.  If not, see <https://www.gnu.org/licenses/>.
 /***************************************************************************
 
     cdrom.h
@@ -21,6 +37,9 @@
 #include <string_view>
 #include <system_error>
 
+namespace hostfs {
+class File;
+}
 
 class cdrom_file {
 public:
@@ -292,9 +311,9 @@ private:
 	static int tokenize(const char *linebuffer, int i, int linebuffersize, char *token, int tokensize);
 	static int msf_to_frames(const char *token);
 	static uint32_t parse_wav_sample(std::string_view filename, uint32_t *dataoffs);
-	static uint16_t read_uint16(FILE *infile);
-	static uint32_t read_uint32(FILE *infile);
-	static uint64_t read_uint64(FILE *infile);
+	static uint16_t read_uint16(hostfs::File *infile);
+	static uint32_t read_uint32(hostfs::File *infile);
+	static uint64_t read_uint64(hostfs::File *infile);
 };
 
 #endif // MAME_LIB_UTIL_CDROM_H

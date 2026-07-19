@@ -1,5 +1,21 @@
 // license:BSD-3-Clause
 // copyright-holders:Vas Crabb
+// Portions Copyright 2026 The Hollycast Authors
+//
+// This file is part of Hollycast.
+//
+//     Hollycast is free software: you can redistribute it and/or modify
+//     it under the terms of the GNU General Public License as published by
+//     the Free Software Foundation, either version 2 of the License, or
+//     (at your option) any later version.
+//
+//     Hollycast is distributed in the hope that it will be useful,
+//     but WITHOUT ANY WARRANTY; without even the implied warranty of
+//     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+//     GNU General Public License for more details.
+//
+//     You should have received a copy of the GNU General Public License
+//     along with Hollycast.  If not, see <https://www.gnu.org/licenses/>.
 /***************************************************************************
 
     eigccppc.h
@@ -229,6 +245,99 @@ _mulu_64x64(uint64_t a, uint64_t b, uint64_t &hi)
 	unsigned __int128 const r((unsigned __int128)a * b);
 	hi = uint64_t(r >> 64);
 	return uint64_t(r);
+}
+#endif
+
+
+
+/***************************************************************************
+    INLINE BIT MANIPULATION FUNCTIONS
+***************************************************************************/
+
+/*-------------------------------------------------
+    count_leading_zeros_32 - return the number of
+    leading zero bits in a 32-bit value
+-------------------------------------------------*/
+
+#define count_leading_zeros_32 _count_leading_zeros_32
+inline uint8_t ATTR_CONST ATTR_FORCE_INLINE
+_count_leading_zeros_32(uint32_t value)
+{
+	uint32_t result;
+
+	__asm__ (
+		" cntlzw  %[result], %[value] \n"
+		: [result] "=r" (result)
+		: [value]  "r"  (value)
+	);
+
+	return uint8_t(result);
+}
+
+
+/*-------------------------------------------------
+    count_leading_ones_32 - return the number of
+    leading one bits in a 32-bit value
+-------------------------------------------------*/
+
+#define count_leading_ones_32 _count_leading_ones_32
+inline uint8_t ATTR_CONST ATTR_FORCE_INLINE
+_count_leading_ones_32(uint32_t value)
+{
+	uint32_t result;
+
+	__asm__ (
+		" cntlzw  %[result], %[value] \n"
+		: [result] "=r" (result)
+		: [value]  "r"  (~value)
+	);
+
+	return uint8_t(result);
+}
+
+
+/*-------------------------------------------------
+    count_leading_zeros_64 - return the number of
+    leading zero bits in a 64-bit value
+-------------------------------------------------*/
+
+#if defined(__ppc64__) || defined(__PPC64___) || defined(_ARCH_PPC64)
+#define count_leading_zeros_64 _count_leading_zeros_64
+inline uint8_t ATTR_CONST ATTR_FORCE_INLINE
+_count_leading_zeros_64(uint64_t value)
+{
+	uint64_t result;
+
+	__asm__ (
+		" cntlzd  %[result], %[value] \n"
+		: [result] "=r" (result)
+		: [value]  "r"  (value)
+	);
+
+	return uint8_t(result);
+}
+#endif
+
+
+/*-------------------------------------------------
+    count_leading_ones_64 - return the number of
+    leading one bits in a 64-bit value
+-------------------------------------------------*/
+
+#if defined(__ppc64__) || defined(__PPC64___) || defined(_ARCH_PPC64)
+#define count_leading_ones_64 _count_leading_ones_64
+inline uint8_t ATTR_CONST ATTR_FORCE_INLINE
+_count_leading_ones_64(uint64_t value)
+{
+	uint64_t result;
+
+	__asm__ (
+		" cntlzd  %[result], %[value] \n"
+		: [result] "=r" (result)
+		: [value]  "r"  (~value)
+	);
+
+	return uint8_t(result);
 }
 #endif
 

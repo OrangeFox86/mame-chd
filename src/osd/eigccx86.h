@@ -1,5 +1,21 @@
 // license:BSD-3-Clause
 // copyright-holders:Vas Crabb
+// Portions Copyright 2026 The Hollycast Authors
+//
+// This file is part of Hollycast.
+//
+//     Hollycast is free software: you can redistribute it and/or modify
+//     it under the terms of the GNU General Public License as published by
+//     the Free Software Foundation, either version 2 of the License, or
+//     (at your option) any later version.
+//
+//     Hollycast is distributed in the hope that it will be useful,
+//     but WITHOUT ANY WARRANTY; without even the implied warranty of
+//     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+//     GNU General Public License for more details.
+//
+//     You should have received a copy of the GNU General Public License
+//     along with Hollycast.  If not, see <https://www.gnu.org/licenses/>.
 /***************************************************************************
 
     eigccx86.h
@@ -468,6 +484,98 @@ inline uint64_t _muldivupu_64(uint64_t m1, uint64_t m2, uint64_t d)
 /***************************************************************************
     INLINE BIT MANIPULATION FUNCTIONS
 ***************************************************************************/
+
+/*-------------------------------------------------
+    count_leading_zeros_32 - return the number of
+    leading zero bits in a 32-bit value
+-------------------------------------------------*/
+
+#define count_leading_zeros_32 _count_leading_zeros_32
+inline uint8_t ATTR_CONST ATTR_FORCE_INLINE
+_count_leading_zeros_32(uint32_t value)
+{
+	uint32_t result;
+	__asm__ (
+		" bsrl    %[value], %[result] ;"
+		" cmovzl  %[bias], %[result]  ;"
+		: [result] "=&r" (result)       // result can be in any register
+		: [value]  "rm"  (value)        // 'value' can be register or memory
+		, [bias]   "rm"  (~uint32_t(0)) // 'bias' can be register or memory
+		: "cc"                          // clobbers condition codes
+	);
+	return uint8_t(31U - result);
+}
+
+
+/*-------------------------------------------------
+    count_leading_ones_32 - return the number of
+    leading one bits in a 32-bit value
+-------------------------------------------------*/
+
+#define count_leading_ones_32 _count_leading_ones_32
+inline uint8_t ATTR_CONST ATTR_FORCE_INLINE
+_count_leading_ones_32(uint32_t value)
+{
+	uint32_t result;
+	__asm__ (
+		" bsrl    %[value], %[result] ;"
+		" cmovzl  %[bias], %[result]  ;"
+		: [result] "=&r" (result)       // result can be in any register
+		: [value]  "rm"  (~value)       // 'value' can be register or memory
+		, [bias]   "rm"  (~uint32_t(0)) // 'bias' can be register or memory
+		: "cc"                          // clobbers condition codes
+	);
+	return uint8_t(31U - result);
+}
+
+
+/*-------------------------------------------------
+    count_leading_zeros_64 - return the number of
+    leading zero bits in a 64-bit value
+-------------------------------------------------*/
+
+#ifdef __x86_64__
+#define count_leading_zeros_64 _count_leading_zeros_64
+inline uint8_t ATTR_CONST ATTR_FORCE_INLINE
+_count_leading_zeros_64(uint64_t value)
+{
+	uint64_t result;
+	__asm__ (
+		" bsrq    %[value], %[result] ;"
+		" cmovzq  %[bias], %[result]  ;"
+		: [result] "=&r" (result)       // result can be in any register
+		: [value]  "rm"  (value)        // 'value' can be register or memory
+		, [bias]   "rm"  (~uint64_t(0)) // 'bias' can be register or memory
+		: "cc"                          // clobbers condition codes
+	);
+	return uint8_t(63U - result);
+}
+#endif
+
+
+/*-------------------------------------------------
+    count_leading_ones_64 - return the number of
+    leading one bits in a 64-bit value
+-------------------------------------------------*/
+
+#ifdef __x86_64__
+#define count_leading_ones_64 _count_leading_ones_64
+inline uint8_t ATTR_CONST ATTR_FORCE_INLINE
+_count_leading_ones_64(uint64_t value)
+{
+	uint64_t result;
+	__asm__ (
+		" bsrq    %[value], %[result] ;"
+		" cmovzq  %[bias], %[result]  ;"
+		: [result] "=&r" (result)       // result can be in any register
+		: [value]  "rm"  (~value)       // 'value' can be register or memory
+		, [bias]   "rm"  (~uint64_t(0)) // 'bias' can be register or memory
+		: "cc"                          // clobbers condition codes
+	);
+	return uint8_t(63U - result);
+}
+#endif
+
 
 /*-------------------------------------------------
     rotl_32 - circularly shift a 32-bit value left

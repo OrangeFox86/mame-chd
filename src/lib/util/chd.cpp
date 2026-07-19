@@ -1,5 +1,21 @@
 // license:BSD-3-Clause
 // copyright-holders:Aaron Giles
+// Portions Copyright 2026 The Hollycast Authors
+//
+// This file is part of Hollycast.
+//
+//     Hollycast is free software: you can redistribute it and/or modify
+//     it under the terms of the GNU General Public License as published by
+//     the Free Software Foundation, either version 2 of the License, or
+//     (at your option) any later version.
+//
+//     Hollycast is distributed in the hope that it will be useful,
+//     but WITHOUT ANY WARRANTY; without even the implied warranty of
+//     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+//     GNU General Public License for more details.
+//
+//     You should have received a copy of the GNU General Public License
+//     along with Hollycast.  If not, see <https://www.gnu.org/licenses/>.
 /***************************************************************************
 
     MAME Compressed Hunks of Data file format
@@ -8,11 +24,17 @@
 
 #include "chd.h"
 
+#ifndef HOLLYCAST_CHD_NO_AVHUFF
 #include "avhuff.h"
+#endif
 #include "cdrom.h"
 #include "corefile.h"
+#include "coretmpl.h"
+#ifndef HOLLYCAST_CHD_NO_FLAC
 #include "flac.h"
+#endif
 #include "hashing.h"
+#include "huffman.h"
 #include "multibyte.h"
 
 #include "eminline.h"
@@ -23,7 +45,6 @@
 #include <cassert>
 #include <cstddef>
 #include <cstdlib>
-#include <cstring>
 #include <ctime>
 #include <new>
 #include <tuple>
@@ -3013,11 +3034,14 @@ void chd_file_compressor::compress_begin()
 		item.m_hash.resize(hunk_bytes() / unit_bytes());
 	}
 
-	// initialize codec instances
+	// Reset codec instances. They are allocated lazily per real worker thread
+	// in async_compress_hunk(). Android devices can report many possible worker
+	// slots, but eagerly allocating all codec groups can exhaust native memory
+	// even when the active CHD worker count is capped lower.
 	for (auto & elem : m_codecs)
 	{
 		delete elem;
-		elem = new chd_compressor_group(*this, m_compression);
+		elem = nullptr;
 	}
 
 	// reset write state
@@ -3149,7 +3173,13 @@ std::error_condition chd_file_compressor::compress_continue(double &progress, do
 			else
 			{
 				// wait for all reads to finish and if we're compressed, write the final SHA1 and map
+#ifdef __ANDROID__
+				while (!osd_work_queue_wait(m_read_queue, osd_ticks_per_second()))
+				{
+				}
+#else
 				osd_work_queue_wait(m_read_queue, 30 * osd_ticks_per_second());
+#endif
 				if (!compressed())
 					return std::error_condition();
 				std::error_condition err = set_raw_sha1(m_compsha1.finish());
@@ -3252,6 +3282,8 @@ void chd_file_compressor::async_compress_hunk(work_item &item, int threadid)
 {
 	// use our thread's codec
 	assert(threadid < std::size(m_codecs));
+	if (m_codecs[threadid] == nullptr)
+		m_codecs[threadid] = new chd_compressor_group(*this, m_compression);
 	item.m_codecs = m_codecs[threadid];
 
 	// compute CRC-16 and SHA-1 hashes

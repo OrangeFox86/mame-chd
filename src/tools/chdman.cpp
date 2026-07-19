@@ -1,5 +1,21 @@
 // license:BSD-3-Clause
 // copyright-holders:Aaron Giles
+// Portions Copyright 2026 The Hollycast Authors
+//
+// This file is part of Hollycast.
+//
+//     Hollycast is free software: you can redistribute it and/or modify
+//     it under the terms of the GNU General Public License as published by
+//     the Free Software Foundation, either version 2 of the License, or
+//     (at your option) any later version.
+//
+//     Hollycast is distributed in the hope that it will be useful,
+//     but WITHOUT ANY WARRANTY; without even the implied warranty of
+//     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+//     GNU General Public License for more details.
+//
+//     You should have received a copy of the GNU General Public License
+//     along with Hollycast.  If not, see <https://www.gnu.org/licenses/>.
 /***************************************************************************
 
     CHD compression frontend
@@ -917,23 +933,19 @@ static const command_description s_commands[] =
 // hard disk templates
 static const hd_template s_hd_templates[] =
 {
-	{ "Conner",     "CFA170A",               332, 16, 63, 512 }, //   163 MB, IDE (ATA)
-	{ "Rodime",     "R0201",                 321,  2, 16, 512 }, //     5 MB, ST-506/MFM
-	{ "Rodime",     "R0202",                 321,  4, 16, 512 }, //    10 MB, ST-506/MFM
-	{ "Rodime",     "R0203",                 321,  6, 16, 512 }, //    15 MB, ST-506/MFM
-	{ "Rodime",     "R0204",                 321,  8, 16, 512 }, //    20 MB, ST-506/MFM
-	{ "Seagate",    "ST-213",                615,  2, 17, 512 }, //    10 MB, ST-506/MFM
-	{ "Seagate",    "ST-225",                615,  4, 17, 512 }, //    20 MB, ST-506/MFM
-	{ "Seagate",    "ST-251",                820,  6, 17, 512 }, //    40 MB, ST-506/MFM
-	{ "Seagate",    "ST-3600N",             1877,  7, 76, 512 }, //   525 MB, SCSI
-	{ "Maxtor",     "LXT-213S",             1314,  7, 53, 512 }, //   200 MB, SCSI
-	{ "Maxtor",     "LXT-340S",             1574,  7, 70, 512 }, //   340 MB, SCSI
-	{ "Maxtor",     "MXT-540SL",            2466,  7, 87, 512 }, //   540 MB, SCSI
-	{ "Micropolis", "1528",                 2094, 15, 83, 512 }, //  1342 MB, SCSI-2
-	{ "Quantum",    "Fireball CR 4.3 AT",  14848,  9, 63, 512 }, //  4110 MB (4.3 GB), Ultra ATA/66 (ATA-5)
-	{ "Quantum",    "Fireball CR 6.4 AT",  13328, 15, 63, 512 }, //  6149 MB (6.4 GB), Ultra ATA/66 (ATA-5)
-	{ "Quantum",    "Fireball CR 8.4 AT",  16383, 16, 63, 512 }, //  8063 MB (8.4 GB), Ultra ATA/66 (ATA-5)
-	{ "Quantum",    "Fireball CR 13.0 AT", 25228, 16, 63, 512 }, // 12416 MB (13.0 GB), Ultra ATA/66 (ATA-5)
+	{ "Conner",     "CFA170A",    332, 16, 63, 512 }, //  163 MB
+	{ "Rodime",     "R0201",      321,  2, 16, 512 }, //    5 MB
+	{ "Rodime",     "R0202",      321,  4, 16, 512 }, //   10 MB
+	{ "Rodime",     "R0203",      321,  6, 16, 512 }, //   15 MB
+	{ "Rodime",     "R0204",      321,  8, 16, 512 }, //   20 MB
+	{ "Seagate",    "ST-213",     615,  2, 17, 512 }, //   10 MB
+	{ "Seagate",    "ST-225",     615,  4, 17, 512 }, //   20 MB
+	{ "Seagate",    "ST-251",     820,  6, 17, 512 }, //   40 MB
+	{ "Seagate",    "ST-3600N",  1877,  7, 76, 512 }, //  525 MB
+	{ "Maxtor",     "LXT-213S",  1314,  7, 53, 512 }, //  200 MB
+	{ "Maxtor",     "LXT-340S",  1574,  7, 70, 512 }, //  340 MB
+	{ "Maxtor",     "MXT-540SL", 2466,  7, 87, 512 }, //  540 MB
+	{ "Micropolis", "1528",      2094, 15, 83, 512 }, // 1342 MB
 };
 
 
@@ -3400,14 +3412,12 @@ static void do_dump_metadata(parameters_map &params)
 static void do_list_templates(parameters_map &params)
 {
 	util::stream_format(std::cout, "\n");
-	util::stream_format(std::cout, "ID  Manufacturer  Model               Cylinders  Heads  Sectors  Sector Size  Total Size\n");
-	util::stream_format(std::cout, "----------------------------------------------------------------------------------------\n");
+	util::stream_format(std::cout, "ID  Manufacturer  Model           Cylinders  Heads  Sectors  Sector Size  Total Size\n");
+	util::stream_format(std::cout, "------------------------------------------------------------------------------------\n");
 
 	for (int id = 0; id < std::size(s_hd_templates); id++)
 	{
-		uint32_t size = ((uint64_t)s_hd_templates[id].cylinders * s_hd_templates[id].heads * s_hd_templates[id].sectors * s_hd_templates[id].sector_size) / 1024 / 1024;
-
-		util::stream_format(std::cout, "%2d  %-13s %-19s %9d  %5d  %7d  %11d  %7d MB\n",
+		util::stream_format(std::cout, "%2d  %-13s %-15s %9d  %5d  %7d  %11d  %7d MB\n",
 			id,
 			s_hd_templates[id].manufacturer,
 			s_hd_templates[id].model,
@@ -3415,7 +3425,7 @@ static void do_list_templates(parameters_map &params)
 			s_hd_templates[id].heads,
 			s_hd_templates[id].sectors,
 			s_hd_templates[id].sector_size,
-			size
+			(s_hd_templates[id].cylinders * s_hd_templates[id].heads * s_hd_templates[id].sectors * s_hd_templates[id].sector_size) / 1024 / 1024
 		);
 	}
 }
