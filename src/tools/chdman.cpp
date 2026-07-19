@@ -23,8 +23,6 @@
 ****************************************************************************/
 #include <stdio.h> // must be stdio.h and here otherwise issues with I64FMT in MINGW
 
-#define myconst 42
-
 // lib/util
 #include "avhuff.h"
 #include "aviio.h"
