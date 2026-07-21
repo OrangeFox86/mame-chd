@@ -1,6 +1,5 @@
 // license:BSD-3-Clause
 // copyright-holders:Aaron Giles
-// Portions Copyright 2026 The Hollycast Authors
 /***************************************************************************
 
     flac.h
