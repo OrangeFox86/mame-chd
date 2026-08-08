@@ -38,6 +38,9 @@
 #include <system_error>
 
 namespace hostfs {
+/// @brief Hollycast uses hostfs::File instead of FILE* here, because
+/// it lets us avoid the Windows fseek() limitation of 2gb.
+/// Otherwise, we would get errors when seeking in large ISO files.
 class File;
 }
 
