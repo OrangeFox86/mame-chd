@@ -42,7 +42,9 @@
 #include "strformat.h"
 
 #include <cassert>
+#include <cerrno>
 #include <cstdlib>
+#include <cstring>
 #include <tuple>
 
 
@@ -53,6 +55,12 @@
 /** @brief  The verbose. */
 #define VERBOSE (0)
 #define EXTRA_VERBOSE (0)
+
+static std::error_condition hostfs_error_condition() noexcept
+{
+	// Some platform storage providers, notably Android SAF, can fail without setting errno.
+	return std::error_condition(errno != 0 ? errno : EIO, std::generic_category());
+}
 
 static bool is_content_uri(std::string_view path)
 {
@@ -1887,7 +1895,7 @@ std::error_condition cdrom_file::parse_nero(std::string_view tocfname, toc &outt
 	hostfs::File *infile = hostfs::storage().openFile(path, "rb");
 	if (!infile)
 	{
-		return std::error_condition(errno, std::generic_category());
+		return hostfs_error_condition();
 	}
 
 	path = get_file_path(path);
@@ -2066,7 +2074,7 @@ std::error_condition cdrom_file::parse_iso(std::string_view tocfname, toc &outto
 	hostfs::File *infile = hostfs::storage().openFile(path, "rb");
 	if (!infile)
 	{
-		return std::error_condition(errno, std::generic_category());
+		return hostfs_error_condition();
 	}
 
 	path = get_file_path(path);
@@ -2158,7 +2166,7 @@ std::error_condition cdrom_file::parse_gdi(std::string_view tocfname, toc &outto
 	hostfs::File *infile = hostfs::storage().openFile(path, "rt");
 	if (!infile)
 	{
-		return std::error_condition(errno, std::generic_category());
+		return hostfs_error_condition();
 	}
 
 	path = get_file_path(path);
@@ -2383,7 +2391,7 @@ std::error_condition cdrom_file::parse_cue(std::string_view tocfname, toc &outto
 	hostfs::File *infile = hostfs::storage().openFile(path, "rt");
 	if (!infile)
 	{
-		return std::error_condition(errno, std::generic_category());
+		return hostfs_error_condition();
 	}
 
 	path = get_file_path(path);
@@ -2985,7 +2993,7 @@ std::error_condition cdrom_file::parse_toc(std::string_view tocfname, toc &outto
 	hostfs::File *infile = hostfs::storage().openFile(path, "rt");
 	if (!infile)
 	{
-		return std::error_condition(errno, std::generic_category());
+		return hostfs_error_condition();
 	}
 
 	path = get_file_path(path);

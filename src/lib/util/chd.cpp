@@ -45,6 +45,7 @@
 #include <cassert>
 #include <cstddef>
 #include <cstdlib>
+#include <cstring>
 #include <ctime>
 #include <new>
 #include <tuple>
@@ -3170,7 +3171,17 @@ std::error_condition chd_file_compressor::compress_continue(double &progress, do
 			else
 			{
 				// wait for all reads to finish and if we're compressed, write the final SHA1 and map
+#ifdef __ANDROID__
+				// SAF reads can exceed the desktop timeout. Finalizing before they finish can
+				// produce a SHA/map from incomplete data, so wait until the read queue is drained.
+				while (!osd_work_queue_wait(m_read_queue, osd_ticks_per_second()))
+				{
+				}
+#else
 				osd_work_queue_wait(m_read_queue, 30 * osd_ticks_per_second());
+#endif
+				if (UNEXPECTED(m_read_error))
+					return m_read_error;
 				if (!compressed())
 					return std::error_condition();
 				std::error_condition err = set_raw_sha1(m_compsha1.finish());

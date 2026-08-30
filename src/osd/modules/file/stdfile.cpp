@@ -38,6 +38,12 @@
 
 namespace {
 
+static std::error_condition hostfs_error_condition() noexcept
+{
+	// Some platform storage providers, notably Android SAF, can fail without setting errno.
+	return std::error_condition(errno != 0 ? errno : EIO, std::generic_category());
+}
+
 static bool seek_file(hostfs::File *file, std::uint64_t offset) noexcept
 {
 	return file->seek(offset, SEEK_SET) == 0;
@@ -81,18 +87,20 @@ public:
 	{
 		if (!seek_file(m_file, offset))
 		{
+			const std::error_condition error = hostfs_error_condition();
 			ERROR_LOG(COMMON, "CHD stdfile seek failed: path='%s' offset=%llu errno=%d",
-				m_path.c_str(), (unsigned long long)offset, errno);
-			return std::error_condition(errno, std::generic_category());
+				m_path.c_str(), (unsigned long long)offset, error.value());
+			return error;
 		}
 
 		// perform the read
 		std::size_t const count = m_file->read(buffer, 1, length);
 		if ((count < length) && m_file->error())
 		{
+			const std::error_condition error = hostfs_error_condition();
 			ERROR_LOG(COMMON, "CHD stdfile read failed: path='%s' offset=%llu length=%u errno=%d",
-				m_path.c_str(), (unsigned long long)offset, length, errno);
-			return std::error_condition(errno, std::generic_category());
+				m_path.c_str(), (unsigned long long)offset, length, error.value());
+			return error;
 		}
 		actual = count;
 
@@ -107,18 +115,20 @@ public:
 	{
 		if (!seek_file(m_file, offset))
 		{
+			const std::error_condition error = hostfs_error_condition();
 			ERROR_LOG(COMMON, "CHD stdfile seek failed: path='%s' offset=%llu errno=%d",
-				m_path.c_str(), (unsigned long long)offset, errno);
-			return std::error_condition(errno, std::generic_category());
+				m_path.c_str(), (unsigned long long)offset, error.value());
+			return error;
 		}
 
 		// perform the write
 		std::size_t const count = m_file->write(buffer, 1, length);
 		if (count < length)
 		{
+			const std::error_condition error = hostfs_error_condition();
 			ERROR_LOG(COMMON, "CHD stdfile write failed: path='%s' offset=%llu length=%u errno=%d",
-				m_path.c_str(), (unsigned long long)offset, length, errno);
-			return std::error_condition(errno, std::generic_category());
+				m_path.c_str(), (unsigned long long)offset, length, error.value());
+			return error;
 		}
 		actual = count;
 
@@ -133,9 +143,10 @@ public:
 	{
 		if (m_file->truncate(offset) < 0)
 		{
+			const std::error_condition error = hostfs_error_condition();
 			ERROR_LOG(COMMON, "CHD stdfile truncate failed: path='%s' offset=%llu errno=%d",
-				m_path.c_str(), (unsigned long long)offset, errno);
-			return std::error_condition(errno, std::generic_category());
+				m_path.c_str(), (unsigned long long)offset, error.value());
+			return error;
 		}
 		return std::error_condition();
 	}
@@ -149,7 +160,7 @@ public:
 		if (!m_file->flush())
 			return std::error_condition();
 		else
-			return std::error_condition(errno, std::generic_category());
+			return hostfs_error_condition();
 	}
 
 private:
@@ -184,15 +195,16 @@ std::error_condition osd_file::open(std::string const &path, std::uint32_t openf
 	hostfs::File *const fileptr = hostfs::storage().openFile(path, mode);
 	if (!fileptr)
 	{
-		ERROR_LOG(COMMON, "CHD stdfile open failed: path='%s' mode='%s' errno=%d", path.c_str(), mode, errno);
-		return std::error_condition(errno, std::generic_category());
+		const std::error_condition error = hostfs_error_condition();
+		ERROR_LOG(COMMON, "CHD stdfile open failed: path='%s' mode='%s' errno=%d", path.c_str(), mode, error.value());
+		return error;
 	}
 
 	const std::int64_t length = seek_file_end(fileptr) ? tell_file(fileptr) : -1;
 	if ((length < 0) || !seek_file(fileptr, 0))
 	{
-		std::error_condition err(errno, std::generic_category());
-		ERROR_LOG(COMMON, "CHD stdfile size probe failed: path='%s' mode='%s' errno=%d", path.c_str(), mode, errno);
+		std::error_condition err = hostfs_error_condition();
+		ERROR_LOG(COMMON, "CHD stdfile size probe failed: path='%s' mode='%s' errno=%d", path.c_str(), mode, err.value());
 		delete fileptr;
 		return err;
 	}
@@ -229,8 +241,9 @@ std::error_condition osd_file::remove(std::string const &filename) noexcept
 		return std::error_condition();
 	else
 	{
-		ERROR_LOG(COMMON, "CHD stdfile remove failed: path='%s' errno=%d", filename.c_str(), errno);
-		return std::error_condition(errno, std::generic_category());
+		const std::error_condition error = hostfs_error_condition();
+		ERROR_LOG(COMMON, "CHD stdfile remove failed: path='%s' errno=%d", filename.c_str(), error.value());
+		return error;
 	}
 }
 
