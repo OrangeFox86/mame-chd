@@ -570,7 +570,7 @@ private:
 	std::vector<uint8_t>    m_work_buffer;      // buffer containing hunk data to work on
 	std::vector<uint8_t>    m_compressed_buffer;// buffer containing compressed data
 	work_item               m_work_item[WORK_BUFFER_HUNKS]; // status of each hunk
-	chd_compressor_group *  m_codecs[WORK_MAX_THREADS]; // codecs to use
+	chd_compressor_group *  m_codecs[WORK_MAX_THREADS]; // lazy-allocated codecs to use
 
 	// output state
 	uint32_t                m_write_hunk;       // next hunk to write

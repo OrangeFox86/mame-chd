@@ -1,5 +1,21 @@
 // license:BSD-3-Clause
 // copyright-holders:Aaron Giles
+// Portions Copyright 2026 The Hollycast Authors
+//
+// This file is part of Hollycast.
+//
+//     Hollycast is free software: you can redistribute it and/or modify
+//     it under the terms of the GNU General Public License as published by
+//     the Free Software Foundation, either version 2 of the License, or
+//     (at your option) any later version.
+//
+//     Hollycast is distributed in the hope that it will be useful,
+//     but WITHOUT ANY WARRANTY; without even the implied warranty of
+//     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+//     GNU General Public License for more details.
+//
+//     You should have received a copy of the GNU General Public License
+//     along with Hollycast.  If not, see <https://www.gnu.org/licenses/>.
 //============================================================
 //
 //  stdfile.cpp - Minimal core file access functions
@@ -8,6 +24,8 @@
 
 #include "osdcore.h"
 #include "osdfile.h"
+#include "log/Log.h"
+#include "oslib/storage.h"
 
 #include <cassert>
 #include <cerrno>
@@ -18,17 +36,34 @@
 #include <limits>
 #include <string>
 
-#include <stdio.h>  // for fileno
-#include <unistd.h> // for ftruncate
-
-
 namespace {
+
+static std::error_condition hostfs_error_condition() noexcept
+{
+	// Some platform storage providers, notably Android SAF, can fail without setting errno.
+	return std::error_condition(errno != 0 ? errno : EIO, std::generic_category());
+}
+
+static bool seek_file(hostfs::File *file, std::uint64_t offset) noexcept
+{
+	return file->seek(offset, SEEK_SET) == 0;
+}
+
+static bool seek_file_end(hostfs::File *file) noexcept
+{
+	return file->seek(0, SEEK_END) == 0;
+}
+
+static std::int64_t tell_file(hostfs::File *file) noexcept
+{
+	return file->tell();
+}
 
 class std_osd_file : public osd_file
 {
 public:
 
-	std_osd_file(FILE *f) noexcept : m_file(f)
+	std_osd_file(hostfs::File *f, std::string path) noexcept : m_file(f), m_path(std::move(path))
 	{
 		assert(m_file);
 	}
@@ -41,7 +76,7 @@ public:
 	{
 		// close the file handle
 		if (m_file)
-			std::fclose(m_file);
+			delete m_file;
 	}
 
 	//============================================================
@@ -50,18 +85,22 @@ public:
 
 	virtual std::error_condition read(void *buffer, std::uint64_t offset, std::uint32_t length, std::uint32_t &actual) noexcept override
 	{
-		// seek to the new location; note that most fseek implementations are limited to the range of long int
-		if (std::numeric_limits<long>::max() < offset)
-			return std::errc::invalid_argument;
-		if (std::fseek(m_file, offset, SEEK_SET) < 0)
-			return std::error_condition(errno, std::generic_category());
+		if (!seek_file(m_file, offset))
+		{
+			const std::error_condition error = hostfs_error_condition();
+			ERROR_LOG(COMMON, "CHD stdfile seek failed: path='%s' offset=%llu errno=%d",
+				m_path.c_str(), (unsigned long long)offset, error.value());
+			return error;
+		}
 
 		// perform the read
-		std::size_t const count = std::fread(buffer, 1, length, m_file);
-		if ((count < length) && std::ferror(m_file))
+		std::size_t const count = m_file->read(buffer, 1, length);
+		if ((count < length) && m_file->error())
 		{
-			std::clearerr(m_file);
-			return std::error_condition(errno, std::generic_category());
+			const std::error_condition error = hostfs_error_condition();
+			ERROR_LOG(COMMON, "CHD stdfile read failed: path='%s' offset=%llu length=%u errno=%d",
+				m_path.c_str(), (unsigned long long)offset, length, error.value());
+			return error;
 		}
 		actual = count;
 
@@ -74,18 +113,22 @@ public:
 
 	virtual std::error_condition write(const void *buffer, std::uint64_t offset, std::uint32_t length, std::uint32_t &actual) noexcept override
 	{
-		// seek to the new location; note that most fseek implementations are limited to the range of long int
-		if (std::numeric_limits<long>::max() < offset)
-			return std::errc::invalid_argument;
-		if (std::fseek(m_file, offset, SEEK_SET) < 0)
-			return std::error_condition(errno, std::generic_category());
+		if (!seek_file(m_file, offset))
+		{
+			const std::error_condition error = hostfs_error_condition();
+			ERROR_LOG(COMMON, "CHD stdfile seek failed: path='%s' offset=%llu errno=%d",
+				m_path.c_str(), (unsigned long long)offset, error.value());
+			return error;
+		}
 
 		// perform the write
-		std::size_t const count = std::fwrite(buffer, 1, length, m_file);
+		std::size_t const count = m_file->write(buffer, 1, length);
 		if (count < length)
 		{
-			std::clearerr(m_file);
-			return std::error_condition(errno, std::generic_category());
+			const std::error_condition error = hostfs_error_condition();
+			ERROR_LOG(COMMON, "CHD stdfile write failed: path='%s' offset=%llu length=%u errno=%d",
+				m_path.c_str(), (unsigned long long)offset, length, error.value());
+			return error;
 		}
 		actual = count;
 
@@ -98,11 +141,14 @@ public:
 
 	virtual std::error_condition truncate(std::uint64_t offset) noexcept override
 	{
-		// this is present in POSIX but not C/C++
-		if (::ftruncate(::fileno(m_file), offset) < 0)
-			return std::error_condition(errno, std::generic_category());
-		else
-			return std::error_condition();
+		if (m_file->truncate(offset) < 0)
+		{
+			const std::error_condition error = hostfs_error_condition();
+			ERROR_LOG(COMMON, "CHD stdfile truncate failed: path='%s' offset=%llu errno=%d",
+				m_path.c_str(), (unsigned long long)offset, error.value());
+			return error;
+		}
+		return std::error_condition();
 	}
 
 	//============================================================
@@ -111,14 +157,15 @@ public:
 
 	virtual std::error_condition flush() noexcept override
 	{
-		if (!std::fflush(m_file))
+		if (!m_file->flush())
 			return std::error_condition();
 		else
-			return std::error_condition(errno, std::generic_category());
+			return hostfs_error_condition();
 	}
 
 private:
-	FILE *m_file;
+	hostfs::File *m_file;
+	std::string m_path;
 };
 
 } // anonymous namespace
@@ -145,25 +192,27 @@ std::error_condition osd_file::open(std::string const &path, std::uint32_t openf
 		return std::errc::invalid_argument;
 
 	// open the file
-	FILE *const fileptr = std::fopen(path.c_str(), mode);
+	hostfs::File *const fileptr = hostfs::storage().openFile(path, mode);
 	if (!fileptr)
-		return std::error_condition(errno, std::generic_category());
-
-	// get the size -- note that most fseek/ftell implementations are limited to 32 bits
-	long length;
-	if ((std::fseek(fileptr, 0, SEEK_END) < 0) ||
-		((length = std::ftell(fileptr)) < 0) ||
-		(std::fseek(fileptr, 0, SEEK_SET) < 0))
 	{
-		std::error_condition err(errno, std::generic_category());
-		std::fclose(fileptr);
+		const std::error_condition error = hostfs_error_condition();
+		ERROR_LOG(COMMON, "CHD stdfile open failed: path='%s' mode='%s' errno=%d", path.c_str(), mode, error.value());
+		return error;
+	}
+
+	const std::int64_t length = seek_file_end(fileptr) ? tell_file(fileptr) : -1;
+	if ((length < 0) || !seek_file(fileptr, 0))
+	{
+		std::error_condition err = hostfs_error_condition();
+		ERROR_LOG(COMMON, "CHD stdfile size probe failed: path='%s' mode='%s' errno=%d", path.c_str(), mode, err.value());
+		delete fileptr;
 		return err;
 	}
 
-	osd_file::ptr result(new (std::nothrow) std_osd_file(fileptr));
+	osd_file::ptr result(new (std::nothrow) std_osd_file(fileptr, path));
 	if (!result)
 	{
-		std::fclose(fileptr);
+		delete fileptr;
 		return std::errc::not_enough_memory;
 	}
 	file = std::move(result);
@@ -191,7 +240,11 @@ std::error_condition osd_file::remove(std::string const &filename) noexcept
 	if (!std::remove(filename.c_str()))
 		return std::error_condition();
 	else
-		return std::error_condition(errno, std::generic_category());
+	{
+		const std::error_condition error = hostfs_error_condition();
+		ERROR_LOG(COMMON, "CHD stdfile remove failed: path='%s' errno=%d", filename.c_str(), error.value());
+		return error;
+	}
 }
 
 
@@ -204,18 +257,6 @@ bool osd_get_physical_drive_geometry(const char *filename, uint32_t *cylinders, 
 	// there is no standard way of doing this, so we always return false, indicating
 	// that a given path is not a physical drive
 	return false;
-}
-
-
-//============================================================
-//  osd_uchar_from_osdchar
-//============================================================
-
-int osd_uchar_from_osdchar(char32_t *uchar, const char *osdchar, size_t count) noexcept
-{
-	// we assume a standard 1:1 mapping of characters to the first 256 unicode characters
-	*uchar = (uint8_t)*osdchar;
-	return 1;
 }
 
 
@@ -238,16 +279,16 @@ osd::directory::entry::ptr osd_stat(const std::string &path)
 	auto const resultname = reinterpret_cast<char *>(result) + sizeof(*result);
 	std::strcpy(resultname, path.c_str());
 	result->name = resultname;
-	result->type = ENTTYPE_NONE;
+	result->type = osd::directory::entry::entry_type::NONE;
 	result->size = 0;
 
-	FILE *const f = std::fopen(path.c_str(), "rb");
+	hostfs::File *const f = hostfs::storage().openFile(path, "rb");
 	if (f)
 	{
-		std::fseek(f, 0, SEEK_END);
-		result->type = ENTTYPE_FILE;
-		result->size = std::ftell(f);
-		std::fclose(f);
+		seek_file_end(f);
+		result->type = osd::directory::entry::entry_type::FILE;
+		result->size = tell_file(f);
+		delete f;
 	}
 
 	return osd::directory::entry::ptr(result);

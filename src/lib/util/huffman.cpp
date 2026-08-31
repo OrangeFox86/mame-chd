@@ -96,8 +96,8 @@
 
 ***************************************************************************/
 
+#include "coretmpl.h"
 #include "huffman.h"
-
 #include <algorithm>
 #include <cassert>
 #include <cstdlib>

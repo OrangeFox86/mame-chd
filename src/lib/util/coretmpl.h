@@ -1,5 +1,21 @@
 // license:BSD-3-Clause
 // copyright-holders:Aaron Giles, Vas Crabb
+// Portions Copyright 2026 The Hollycast Authors
+//
+// This file is part of Hollycast.
+//
+//     Hollycast is free software: you can redistribute it and/or modify
+//     it under the terms of the GNU General Public License as published by
+//     the Free Software Foundation, either version 2 of the License, or
+//     (at your option) any later version.
+//
+//     Hollycast is distributed in the hope that it will be useful,
+//     but WITHOUT ANY WARRANTY; without even the implied warranty of
+//     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+//     GNU General Public License for more details.
+//
+//     You should have received a copy of the GNU General Public License
+//     along with Hollycast.  If not, see <https://www.gnu.org/licenses/>.
 /***************************************************************************
 
     coretmpl.h
@@ -333,7 +349,7 @@ using osd::s64;
 template <typename CharT, typename Traits = std::char_traits<CharT> >
 struct transparent_string_equal
 {
-	using is_transparent = void;
+	using is_transparent = std::true_type;
 
 	template <typename AllocA, typename AllocB>
 	bool operator()(std::basic_string<CharT, Traits, AllocA> const &a, std::basic_string<CharT, Traits, AllocB> const &b) const
@@ -368,7 +384,7 @@ struct transparent_string_equal
 template <typename CharT, typename Traits = std::char_traits<CharT> >
 struct transparent_string_less
 {
-	using is_transparent = void;
+	using is_transparent = std::true_type;
 
 	template <typename AllocA, typename AllocB>
 	bool operator()(std::basic_string<CharT, Traits, AllocA> const &a, std::basic_string<CharT, Traits, AllocB> const &b) const
@@ -403,7 +419,7 @@ struct transparent_string_less
 template <typename CharT, typename Traits = std::char_traits<CharT> >
 struct transparent_string_hash : protected std::hash<std::basic_string_view<CharT, Traits> >
 {
-	using is_transparent = void;
+	using is_transparent = std::true_type;
 
 	using std::hash<std::basic_string_view<CharT, Traits> >::operator();
 
@@ -571,16 +587,19 @@ template <typename T, typename U> using equivalent_array_t = typename equivalent
 #define EQUIVALENT_ARRAY(a, T) util::equivalent_array_t<T, std::remove_reference_t<decltype(a)> >
 
 
+template <typename E>
+using enable_enum_t = typename std::enable_if_t<std::is_enum<E>::value, typename std::underlying_type_t<E> >;
+
 // template function which takes a strongly typed enumerator and returns its value as a compile-time constant
 template <typename E>
-constexpr std::underlying_type_t<E> underlying_value(E e) noexcept requires std::is_enum_v<E>
+constexpr enable_enum_t<E> underlying_value(E e) noexcept
 {
 	return static_cast<typename std::underlying_type_t<E> >(e);
 }
 
 // template function which takes an integral value and returns its representation as enumerator (even strongly typed)
 template <typename E , typename T>
-constexpr E enum_value(T value) noexcept requires (std::is_enum_v<E> && std::is_integral_v<T>)
+constexpr typename std::enable_if_t<std::is_enum<E>::value && std::is_integral<T>::value, E> enum_value(T value) noexcept
 {
 	return static_cast<E>(value);
 }
@@ -697,7 +716,7 @@ constexpr std::make_signed_t<T> sext(T value, U width) noexcept
 
 // constexpr absolute value of an integer
 template <typename T>
-constexpr T iabs(T v) noexcept requires std::is_signed_v<T>
+constexpr std::enable_if_t<std::is_signed<T>::value, T> iabs(T v) noexcept
 {
 	return (v < T(0)) ? -v : v;
 }
